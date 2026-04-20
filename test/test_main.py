@@ -31,6 +31,13 @@ class FakeTrainingResult:
     train_row_count: int
 
 
+@dataclass
+class FakeEvaluationResult:
+    mae: float
+    rmse: float
+    r2: float
+
+
 class FakeService:
     def __init__(self, config) -> None:
         self.config = config
@@ -84,8 +91,17 @@ class FakeTrainingService:
         )
 
 
+class FakeEvaluationService:
+    def __init__(self, config) -> None:
+        self.config = config
+
+    def run(self) -> FakeEvaluationResult:
+        return FakeEvaluationResult(mae=12345.67, rmse=45678.9, r2=0.8123)
+
+
 def test_main_prints_already_available_message(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "load_data_ingestion_config", lambda *args, **kwargs: object())
+    monkeypatch.setattr(main_module, "load_data_evaluation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_training_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_validation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_transformation_config", lambda *args, **kwargs: object())
@@ -93,6 +109,7 @@ def test_main_prints_already_available_message(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "DataValidationService", FakeValidationService)
     monkeypatch.setattr(main_module, "DataTransformationService", FakeTransformationService)
     monkeypatch.setattr(main_module, "ModelTrainingService", FakeTrainingService)
+    monkeypatch.setattr(main_module, "ModelEvaluationService", FakeEvaluationService)
 
     main_module.main()
 
@@ -102,12 +119,14 @@ def test_main_prints_already_available_message(monkeypatch, capsys) -> None:
         "Data transformation completed: 4091 rows written to "
         "artifacts/processed/usa_housing_transformed.csv\n"
         "Model training completed: linear_regression fitted on 3272 rows and saved to "
-        "artifacts/models/linear_regression_model.pkl"
+        "artifacts/models/linear_regression_model.pkl\n"
+        "Model evaluation completed: MAE=12345.67, RMSE=45678.90, R2=0.8123"
     )
 
 
 def test_main_prints_downloaded_message(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "load_data_ingestion_config", lambda *args, **kwargs: object())
+    monkeypatch.setattr(main_module, "load_data_evaluation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_training_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_validation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_transformation_config", lambda *args, **kwargs: object())
@@ -115,6 +134,7 @@ def test_main_prints_downloaded_message(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "DataValidationService", FakeValidationService)
     monkeypatch.setattr(main_module, "DataTransformationService", FakeTransformationService)
     monkeypatch.setattr(main_module, "ModelTrainingService", FakeTrainingService)
+    monkeypatch.setattr(main_module, "ModelEvaluationService", FakeEvaluationService)
 
     main_module.main()
 
@@ -124,12 +144,14 @@ def test_main_prints_downloaded_message(monkeypatch, capsys) -> None:
         "Data transformation completed: 4091 rows written to "
         "artifacts/processed/usa_housing_transformed.csv\n"
         "Model training completed: linear_regression fitted on 3272 rows and saved to "
-        "artifacts/models/linear_regression_model.pkl"
+        "artifacts/models/linear_regression_model.pkl\n"
+        "Model evaluation completed: MAE=12345.67, RMSE=45678.90, R2=0.8123"
     )
 
 
 def test_main_prints_validation_warnings(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "load_data_ingestion_config", lambda *args, **kwargs: object())
+    monkeypatch.setattr(main_module, "load_data_evaluation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_training_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_validation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_transformation_config", lambda *args, **kwargs: object())
@@ -137,6 +159,7 @@ def test_main_prints_validation_warnings(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "DataValidationService", FakeWarningValidationService)
     monkeypatch.setattr(main_module, "DataTransformationService", FakeTransformationService)
     monkeypatch.setattr(main_module, "ModelTrainingService", FakeTrainingService)
+    monkeypatch.setattr(main_module, "ModelEvaluationService", FakeEvaluationService)
 
     main_module.main()
 
@@ -147,5 +170,6 @@ def test_main_prints_validation_warnings(monkeypatch, capsys) -> None:
         "Data transformation completed: 4091 rows written to "
         "artifacts/processed/usa_housing_transformed.csv\n"
         "Model training completed: linear_regression fitted on 3272 rows and saved to "
-        "artifacts/models/linear_regression_model.pkl"
+        "artifacts/models/linear_regression_model.pkl\n"
+        "Model evaluation completed: MAE=12345.67, RMSE=45678.90, R2=0.8123"
     )

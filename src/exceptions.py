@@ -19,3 +19,7 @@ class DataTransformationError(Exception):
 
 class ModelTrainingError(Exception):
     """Raised when model training fails."""
+
+
+class ModelEvaluationError(Exception):
+    """Raised when model evaluation fails."""

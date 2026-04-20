@@ -76,6 +76,19 @@ class DataTrainingConfig:
     random_state: int
 
 
+@dataclass(frozen=True, slots=True)
+class DataEvaluationConfig:
+    """Configuration for evaluating a trained model on the held-out split."""
+
+    input_data_path: Path
+    model_artifact_path: Path
+    metrics_path: Path
+    metadata_path: Path
+    sample_predictions_path: Path
+    test_size: float
+    random_state: int
+
+
 def load_data_ingestion_config(
     config_path: str | Path,
     *,
@@ -239,6 +252,50 @@ def load_data_training_config(
         ),
         test_size=_require_probability_with_section(training_data, "test_size", "data_training"),
         random_state=_require_int_with_section(training_data, "random_state", "data_training"),
+    )
+
+
+def load_data_evaluation_config(
+    config_path: str | Path,
+    *,
+    project_root: str | Path | None = None,
+) -> DataEvaluationConfig:
+    """Load and validate model evaluation settings from YAML."""
+
+    config_file = Path(config_path).expanduser().resolve()
+    if not config_file.exists():
+        raise ConfigurationError(f"Config file not found: {config_file}")
+
+    root_dir = Path(project_root).expanduser().resolve() if project_root else config_file.parent.parent
+    config_data = _read_yaml(config_file)
+
+    evaluation_data = config_data.get("data_evaluation")
+    if not isinstance(evaluation_data, dict):
+        raise ConfigurationError("Missing `data_evaluation` section in config.")
+
+    return DataEvaluationConfig(
+        input_data_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(evaluation_data, "input_data_path", "data_evaluation"),
+        ),
+        model_artifact_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(evaluation_data, "model_artifact_path", "data_evaluation"),
+        ),
+        metrics_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(evaluation_data, "metrics_path", "data_evaluation"),
+        ),
+        metadata_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(evaluation_data, "metadata_path", "data_evaluation"),
+        ),
+        sample_predictions_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(evaluation_data, "sample_predictions_path", "data_evaluation"),
+        ),
+        test_size=_require_probability_with_section(evaluation_data, "test_size", "data_evaluation"),
+        random_state=_require_int_with_section(evaluation_data, "random_state", "data_evaluation"),
     )
 
 

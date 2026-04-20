@@ -32,3 +32,12 @@ data_training:
   categorical_feature_columns: city, state
   test_size: 0.2
   random_state: 42
+
+data_evaluation:
+  input_data_path: artifacts/processed/usa_housing_transformed.csv
+  model_artifact_path: artifacts/models/linear_regression_model.pkl
+  metrics_path: artifacts/evaluation/linear_regression_metrics.json
+  metadata_path: artifacts/evaluation/linear_regression_evaluation.metadata.json
+  sample_predictions_path: artifacts/evaluation/linear_regression_sample_predictions.csv
+  test_size: 0.2
+  random_state: 42

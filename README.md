@@ -77,9 +77,9 @@ Data transformation completed: 4091 rows written to .../artifacts/processed/usa_
 Raw data inputs:
 
 - source config: `config/config.yaml`
-- downloaded cache file: `data/raw/USA Housing Dataset.csv`
+- downloaded cache file: `data/external/USA Housing Dataset.csv`
 - materialized raw dataset: `data/raw/usa-housing-dataset/USA Housing Dataset.csv`
-- ingestion manifest: `data/raw/usa-housing-dataset.manifest.json`
+- ingestion manifest: `data/external/usa-housing-dataset.manifest.json`
 
 Processed outputs:
 
@@ -93,7 +93,7 @@ Processed outputs:
 - `source_name`
 - `source_url`
 - `file_name`
-- raw data directories
+- download/cache directories
 - manifest path
 
 `config/model_config.yaml` controls validation and transformation:
