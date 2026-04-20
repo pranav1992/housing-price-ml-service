@@ -70,26 +70,26 @@ Current behavior:
 Create and activate a virtual environment:
 
 ```bash
-python3 -m venv .venv
+uv venv .venv
 source .venv/bin/activate
 ```
 
 Install runtime dependencies:
 
 ```bash
-python -m pip install -e .
+uv sync
 ```
 
 Install development and test extras:
 
 ```bash
-python -m pip install -e '.[dev]'
+uv sync --extra dev
 ```
 
 For notebook work:
 
 ```bash
-python -m pip install -e '.[notebooks]'
+uv sync --extra notebooks
 ```
 
 ## Run The Pipeline
