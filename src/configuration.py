@@ -61,6 +61,21 @@ class DataTransformationConfig:
     drop_non_positive_target: bool
 
 
+@dataclass(frozen=True, slots=True)
+class DataTrainingConfig:
+    """Configuration for training a baseline regression model."""
+
+    input_data_path: Path
+    model_artifact_path: Path
+    metadata_path: Path
+    model_name: str
+    target_column: str
+    numeric_feature_columns: tuple[str, ...]
+    categorical_feature_columns: tuple[str, ...]
+    test_size: float
+    random_state: int
+
+
 def load_data_ingestion_config(
     config_path: str | Path,
     *,
@@ -179,6 +194,54 @@ def load_data_transformation_config(
     )
 
 
+def load_data_training_config(
+    config_path: str | Path,
+    *,
+    project_root: str | Path | None = None,
+) -> DataTrainingConfig:
+    """Load and validate data training settings from YAML."""
+
+    config_file = Path(config_path).expanduser().resolve()
+    if not config_file.exists():
+        raise ConfigurationError(f"Config file not found: {config_file}")
+
+    root_dir = Path(project_root).expanduser().resolve() if project_root else config_file.parent.parent
+    config_data = _read_yaml(config_file)
+
+    training_data = config_data.get("data_training")
+    if not isinstance(training_data, dict):
+        raise ConfigurationError("Missing `data_training` section in config.")
+
+    return DataTrainingConfig(
+        input_data_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(training_data, "input_data_path", "data_training"),
+        ),
+        model_artifact_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(training_data, "model_artifact_path", "data_training"),
+        ),
+        metadata_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(training_data, "metadata_path", "data_training"),
+        ),
+        model_name=_require_string_with_section(training_data, "model_name", "data_training"),
+        target_column=_require_string_with_section(training_data, "target_column", "data_training"),
+        numeric_feature_columns=_require_csv_list_with_section(
+            training_data,
+            "numeric_feature_columns",
+            "data_training",
+        ),
+        categorical_feature_columns=_optional_csv_list_with_section(
+            training_data,
+            "categorical_feature_columns",
+            "data_training",
+        ),
+        test_size=_require_probability_with_section(training_data, "test_size", "data_training"),
+        random_state=_require_int_with_section(training_data, "random_state", "data_training"),
+    )
+
+
 def _read_yaml(config_file: Path) -> dict[str, Any]:
     loaded: dict[str, Any] = {}
     current_section: dict[str, str] | None = None
@@ -271,6 +334,56 @@ def _optional_csv_list_with_section(
     if not isinstance(value, str):
         raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
     return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+def _require_string_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> str:
+    value = data.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+    return value.strip()
+
+
+def _require_float_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> float:
+    value = data.get(key)
+    if not isinstance(value, str):
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+    try:
+        return float(value.strip())
+    except ValueError as exc:
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.") from exc
+
+
+def _require_probability_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> float:
+    value = _require_float_with_section(data, key, section_name)
+    if not 0 < value < 1:
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+    return value
+
+
+def _require_int_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> int:
+    value = data.get(key)
+    if not isinstance(value, str):
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+    try:
+        return int(value.strip())
+    except ValueError as exc:
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.") from exc
 
 
 def _require_bool_with_section(

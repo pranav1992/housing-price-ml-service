@@ -15,3 +15,7 @@ class DataValidationError(Exception):
 
 class DataTransformationError(Exception):
     """Raised when data transformation fails."""
+
+
+class ModelTrainingError(Exception):
+    """Raised when model training fails."""

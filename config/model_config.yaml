@@ -21,3 +21,14 @@ data_transformation:
   state_column_name: state
   zipcode_column_name: zipcode
   drop_non_positive_target: true
+
+data_training:
+  input_data_path: artifacts/processed/usa_housing_transformed.csv
+  model_artifact_path: artifacts/models/linear_regression_model.pkl
+  metadata_path: artifacts/models/linear_regression_model.metadata.json
+  model_name: linear_regression
+  target_column: price
+  numeric_feature_columns: bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, view, condition, sqft_above, sqft_basement, yr_built, yr_renovated, sale_year, sale_month, sale_day
+  categorical_feature_columns: city, state
+  test_size: 0.2
+  random_state: 42

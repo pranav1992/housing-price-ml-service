@@ -24,6 +24,13 @@ class FakeTransformationResult:
     output_row_count: int
 
 
+@dataclass
+class FakeTrainingResult:
+    model_name: str
+    model_artifact_path: str
+    train_row_count: int
+
+
 class FakeService:
     def __init__(self, config) -> None:
         self.config = config
@@ -65,13 +72,27 @@ class FakeTransformationService:
         )
 
 
+class FakeTrainingService:
+    def __init__(self, config) -> None:
+        self.config = config
+
+    def run(self) -> FakeTrainingResult:
+        return FakeTrainingResult(
+            model_name="linear_regression",
+            model_artifact_path="artifacts/models/linear_regression_model.pkl",
+            train_row_count=3272,
+        )
+
+
 def test_main_prints_already_available_message(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "load_data_ingestion_config", lambda *args, **kwargs: object())
+    monkeypatch.setattr(main_module, "load_data_training_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_validation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_transformation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "DataIngestionService", FakeService)
     monkeypatch.setattr(main_module, "DataValidationService", FakeValidationService)
     monkeypatch.setattr(main_module, "DataTransformationService", FakeTransformationService)
+    monkeypatch.setattr(main_module, "ModelTrainingService", FakeTrainingService)
 
     main_module.main()
 
@@ -79,17 +100,21 @@ def test_main_prints_already_available_message(monkeypatch, capsys) -> None:
         "Data is already available with hash: abc123\n"
         "Data validation passed for 4140 rows and 18 columns.\n"
         "Data transformation completed: 4091 rows written to "
-        "artifacts/processed/usa_housing_transformed.csv"
+        "artifacts/processed/usa_housing_transformed.csv\n"
+        "Model training completed: linear_regression fitted on 3272 rows and saved to "
+        "artifacts/models/linear_regression_model.pkl"
     )
 
 
 def test_main_prints_downloaded_message(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "load_data_ingestion_config", lambda *args, **kwargs: object())
+    monkeypatch.setattr(main_module, "load_data_training_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_validation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_transformation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "DataIngestionService", FakeDownloadedService)
     monkeypatch.setattr(main_module, "DataValidationService", FakeValidationService)
     monkeypatch.setattr(main_module, "DataTransformationService", FakeTransformationService)
+    monkeypatch.setattr(main_module, "ModelTrainingService", FakeTrainingService)
 
     main_module.main()
 
@@ -97,17 +122,21 @@ def test_main_prints_downloaded_message(monkeypatch, capsys) -> None:
         "Data downloaded successfully with hash: def456\n"
         "Data validation passed for 4140 rows and 18 columns.\n"
         "Data transformation completed: 4091 rows written to "
-        "artifacts/processed/usa_housing_transformed.csv"
+        "artifacts/processed/usa_housing_transformed.csv\n"
+        "Model training completed: linear_regression fitted on 3272 rows and saved to "
+        "artifacts/models/linear_regression_model.pkl"
     )
 
 
 def test_main_prints_validation_warnings(monkeypatch, capsys) -> None:
     monkeypatch.setattr(main_module, "load_data_ingestion_config", lambda *args, **kwargs: object())
+    monkeypatch.setattr(main_module, "load_data_training_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_validation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "load_data_transformation_config", lambda *args, **kwargs: object())
     monkeypatch.setattr(main_module, "DataIngestionService", FakeService)
     monkeypatch.setattr(main_module, "DataValidationService", FakeWarningValidationService)
     monkeypatch.setattr(main_module, "DataTransformationService", FakeTransformationService)
+    monkeypatch.setattr(main_module, "ModelTrainingService", FakeTrainingService)
 
     main_module.main()
 
@@ -116,5 +145,7 @@ def test_main_prints_validation_warnings(monkeypatch, capsys) -> None:
         "Data validation passed with warnings: "
         "Column `price` contains 49 non-positive value(s).\n"
         "Data transformation completed: 4091 rows written to "
-        "artifacts/processed/usa_housing_transformed.csv"
+        "artifacts/processed/usa_housing_transformed.csv\n"
+        "Model training completed: linear_regression fitted on 3272 rows and saved to "
+        "artifacts/models/linear_regression_model.pkl"
     )
