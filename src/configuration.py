@@ -29,6 +29,20 @@ class DataIngestionConfig:
         return self.extracted_data_dir / self.file_name
 
 
+@dataclass(frozen=True, slots=True)
+class DataValidationConfig:
+    """Configuration for validating the ingested dataset file."""
+
+    data_file_path: Path
+    required_columns: tuple[str, ...]
+    non_empty_columns: tuple[str, ...]
+    numeric_columns: tuple[str, ...]
+    datetime_columns: tuple[str, ...]
+    strict_positive_columns: tuple[str, ...]
+    warning_non_positive_columns: tuple[str, ...]
+    expected_constant_values: tuple[tuple[str, str], ...]
+
+
 def load_data_ingestion_config(
     config_path: str | Path,
     *,
@@ -61,6 +75,36 @@ def load_data_ingestion_config(
         extracted_data_dir=extracted_data_dir,
         manifest_path=manifest_path,
         file_name=file_name,
+    )
+
+
+def load_data_validation_config(
+    config_path: str | Path,
+    *,
+    project_root: str | Path | None = None,
+) -> DataValidationConfig:
+    """Load and validate data validation settings from YAML."""
+
+    config_file = Path(config_path).expanduser().resolve()
+    if not config_file.exists():
+        raise ConfigurationError(f"Config file not found: {config_file}")
+
+    root_dir = Path(project_root).expanduser().resolve() if project_root else config_file.parent.parent
+    config_data = _read_yaml(config_file)
+
+    validation_data = config_data.get("data_validation")
+    if not isinstance(validation_data, dict):
+        raise ConfigurationError("Missing `data_validation` section in config.")
+
+    return DataValidationConfig(
+        data_file_path=_resolve_path(root_dir, _require_string(validation_data, "data_file_path")),
+        required_columns=_require_csv_list(validation_data, "required_columns"),
+        non_empty_columns=_require_csv_list(validation_data, "non_empty_columns"),
+        numeric_columns=_require_csv_list(validation_data, "numeric_columns"),
+        datetime_columns=_optional_csv_list(validation_data, "datetime_columns"),
+        strict_positive_columns=_optional_csv_list(validation_data, "strict_positive_columns"),
+        warning_non_positive_columns=_optional_csv_list(validation_data, "warning_non_positive_columns"),
+        expected_constant_values=_optional_key_value_pairs(validation_data, "expected_constant_values"),
     )
 
 
@@ -114,3 +158,35 @@ def _resolve_path(root_dir: Path, value: str) -> Path:
     if path.is_absolute():
         return path
     return (root_dir / path).resolve()
+
+
+def _require_csv_list(data: dict[str, Any], key: str) -> tuple[str, ...]:
+    values = _optional_csv_list(data, key)
+    if not values:
+        raise ConfigurationError(f"Missing or invalid `data_validation.{key}`.")
+    return values
+
+
+def _optional_csv_list(data: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = data.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, str):
+        raise ConfigurationError(f"Missing or invalid `data_validation.{key}`.")
+
+    items = tuple(item.strip() for item in value.split(",") if item.strip())
+    return items
+
+
+def _optional_key_value_pairs(data: dict[str, Any], key: str) -> tuple[tuple[str, str], ...]:
+    pairs = []
+    for item in _optional_csv_list(data, key):
+        if "=" not in item:
+            raise ConfigurationError(f"Invalid `data_validation.{key}` entry: `{item}`.")
+        name, value = item.split("=", maxsplit=1)
+        name = name.strip()
+        value = value.strip()
+        if not name or not value:
+            raise ConfigurationError(f"Invalid `data_validation.{key}` entry: `{item}`.")
+        pairs.append((name, value))
+    return tuple(pairs)

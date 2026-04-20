@@ -51,11 +51,14 @@ python main.py
    - print the dataset file SHA-256 hash
    - materialize the dataset into `data/raw/usa-housing-dataset`
    - write a manifest to `data/raw/usa-housing-dataset.manifest.json`
-4. Continue with downstream processing and model training in `src/`.
+   - validate the ingested CSV against schema and data-quality checks
+4. Review the exploratory notebook in `notebooks/usa_housing_eda.ipynb`.
+5. Continue with downstream processing and model training in `src/`.
 
 ## Notes
 
 - The current dataset source is Hugging Face: `Nhule0502/USA_house_price`.
+- Current validation warns that `price` contains non-positive values in the downloaded dataset.
 - Use `MAE` as the primary production metric, with `RMSE` for additional model selection insight.
 
 ---

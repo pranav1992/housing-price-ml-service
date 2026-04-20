@@ -1,0 +1,9 @@
+data_validation:
+  data_file_path: data/raw/usa-housing-dataset/USA Housing Dataset.csv
+  required_columns: date, price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, view, condition, sqft_above, sqft_basement, yr_built, yr_renovated, street, city, statezip, country
+  non_empty_columns: date, price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, view, condition, sqft_above, sqft_basement, yr_built, yr_renovated, street, city, statezip, country
+  numeric_columns: price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, view, condition, sqft_above, sqft_basement, yr_built, yr_renovated
+  datetime_columns: date
+  strict_positive_columns: sqft_living, sqft_lot, sqft_above, yr_built
+  warning_non_positive_columns: price
+  expected_constant_values: country=USA

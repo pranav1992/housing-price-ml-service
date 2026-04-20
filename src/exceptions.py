@@ -7,3 +7,7 @@ class ConfigurationError(Exception):
 
 class DataIngestionError(Exception):
     """Raised when data ingestion cannot complete."""
+
+
+class DataValidationError(Exception):
+    """Raised when data validation fails."""
