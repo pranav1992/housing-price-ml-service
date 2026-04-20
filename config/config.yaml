@@ -1,0 +1,7 @@
+data_ingestion:
+  source_name: huggingface
+  source_url: https://huggingface.co/datasets/Nhule0502/USA_house_price/resolve/main/USA%20Housing%20Dataset.csv
+  file_name: USA Housing Dataset.csv
+  raw_data_dir: data/raw
+  extracted_data_dir: data/raw/usa-housing-dataset
+  manifest_path: data/raw/usa-housing-dataset.manifest.json

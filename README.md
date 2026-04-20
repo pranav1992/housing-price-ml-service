@@ -1,8 +1,8 @@
-# Housing Price ML Service
+# House Rent Prediction Service
 
 ## Overview
 
-This repository is a production-ready model pipeline for predicting house prices. It is designed to support training, evaluation, and deployment of a regression model that estimates the market value of residential properties.
+This repository is a production-ready model pipeline for predicting house rent. It is designed to support training, evaluation, and deployment of a regression model that estimates rental prices for residential properties.
 
 ## Objective
 
@@ -38,25 +38,24 @@ uv export -r requirements.txt
 
 ## How to Use
 
-1. Add or ingest the housing dataset into `data/`.
-2. Define the dataset schema and model settings in `config/config.yaml`.
-3. Run the training pipeline in `src/`.
-4. Evaluate model quality using `MAE` and `RMSE`.
-5. Deploy the trained model from `deployment/`.
+1. Review the Hugging Face source settings in `config/config.yaml`.
+2. Run the data ingestion pipeline:
 
-## Recommended First Step
+```bash
+python main.py
+```
 
-1. Collect a house price dataset.
-2. Confirm the target is `price` or `sale_price`.
-3. Choose meaningful input features such as:
-   - neighborhood, location, lot size
-   - square footage, bedrooms, bathrooms
-   - year built, condition, garage size
-4. Start with a small prototype in `notebooks/` or `src/`.
+3. The pipeline will:
+   - download the dataset CSV from Hugging Face into `data/raw/`
+   - skip the download if the dataset file already exists locally
+   - print the dataset file SHA-256 hash
+   - materialize the dataset into `data/raw/usa-housing-dataset`
+   - write a manifest to `data/raw/usa-housing-dataset.manifest.json`
+4. Continue with downstream processing and model training in `src/`.
 
 ## Notes
 
-- Keep `uv.toml` and `uv.lock` as the source of truth for dependency management.
+- The current dataset source is Hugging Face: `Nhule0502/USA_house_price`.
 - Use `MAE` as the primary production metric, with `RMSE` for additional model selection insight.
 
 ---

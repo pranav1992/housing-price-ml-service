@@ -43,3 +43,6 @@ uv.toml
 
 # Optional: Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Project data artifacts
+data/raw/
