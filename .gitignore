@@ -48,5 +48,7 @@ uv.toml
 data/raw/
 data/external/
 artifacts/processed/
+artifacts/predictions/
+artifacts/splits/
 artifacts/models/
 artifacts/evaluation/
