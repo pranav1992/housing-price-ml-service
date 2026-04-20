@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import json
 import pickle
 from pathlib import Path
@@ -36,6 +35,36 @@ def test_training_service_writes_model_artifact_and_metadata(tmp_path: Path) -> 
     assert metadata["test_row_count"] == 2
     assert metadata["target_column"] == "price"
     assert "city=Seattle" in metadata["encoded_feature_names"]
+
+
+def test_training_service_supports_random_forest_model(tmp_path: Path) -> None:
+    input_path = tmp_path / "processed.csv"
+    input_path.write_text(build_training_dataset(), encoding="utf-8")
+    config = build_config(tmp_path, input_path, model_name="random_forest")
+
+    result = ModelTrainingService(config).run()
+
+    with result.model_artifact_path.open("rb") as file_obj:
+        payload = pickle.load(file_obj)
+
+    assert result.model_name == "random_forest"
+    assert payload["model_name"] == "random_forest"
+    assert result.model_artifact_path.name == "random_forest_model.pkl"
+
+
+def test_training_service_supports_hist_gradient_boosting_model(tmp_path: Path) -> None:
+    input_path = tmp_path / "processed.csv"
+    input_path.write_text(build_training_dataset(), encoding="utf-8")
+    config = build_config(tmp_path, input_path, model_name="hist_gradient_boosting")
+
+    result = ModelTrainingService(config).run()
+
+    with result.model_artifact_path.open("rb") as file_obj:
+        payload = pickle.load(file_obj)
+
+    assert result.model_name == "hist_gradient_boosting"
+    assert payload["model_name"] == "hist_gradient_boosting"
+    assert result.model_artifact_path.name == "hist_gradient_boosting_model.pkl"
 
 
 def test_training_service_fails_when_required_column_is_missing(tmp_path: Path) -> None:
@@ -81,12 +110,17 @@ def test_load_data_training_config_resolves_paths_and_fields(tmp_path: Path) -> 
     assert loaded.random_state == 42
 
 
-def build_config(base_dir: Path, input_path: Path) -> DataTrainingConfig:
+def build_config(
+    base_dir: Path,
+    input_path: Path,
+    *,
+    model_name: str = "linear_regression",
+) -> DataTrainingConfig:
     return DataTrainingConfig(
         input_data_path=input_path,
-        model_artifact_path=base_dir / "artifacts" / "models" / "linear_regression_model.pkl",
-        metadata_path=base_dir / "artifacts" / "models" / "linear_regression_model.metadata.json",
-        model_name="linear_regression",
+        model_artifact_path=base_dir / "artifacts" / "models" / f"{model_name}_model.pkl",
+        metadata_path=base_dir / "artifacts" / "models" / f"{model_name}_model.metadata.json",
+        model_name=model_name,
         target_column="price",
         numeric_feature_columns=(
             "bedrooms",
