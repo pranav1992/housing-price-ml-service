@@ -30,7 +30,7 @@ class ModelTrainingResult:
 
 
 class ModelTrainingService:
-    """Train a deterministic baseline regression model from transformed features."""
+    """Train a deterministic regression model from transformed features."""
 
     def __init__(self, config: DataTrainingConfig) -> None:
         self._config = config
@@ -87,6 +87,7 @@ class ModelTrainingService:
 
     def _build_pipeline(self):
         try:
+            from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
             from sklearn.feature_extraction import DictVectorizer
             from sklearn.linear_model import LinearRegression
             from sklearn.pipeline import Pipeline
@@ -96,17 +97,46 @@ class ModelTrainingService:
                 "scikit-learn is required for model training. Install project dependencies before running training."
             ) from exc
 
-        if self._config.model_name != "linear_regression":
-            raise ModelTrainingError(
-                f"Unsupported model `{self._config.model_name}`. Supported models: linear_regression."
+        if self._config.model_name == "linear_regression":
+            return Pipeline(
+                steps=[
+                    ("vectorizer", DictVectorizer(sparse=True)),
+                    ("scaler", StandardScaler(with_mean=False)),
+                    ("regressor", LinearRegression()),
+                ]
             )
 
-        return Pipeline(
-            steps=[
-                ("vectorizer", DictVectorizer(sparse=True)),
-                ("scaler", StandardScaler(with_mean=False)),
-                ("regressor", LinearRegression()),
-            ]
+        if self._config.model_name == "random_forest":
+            return Pipeline(
+                steps=[
+                    ("vectorizer", DictVectorizer(sparse=True)),
+                    (
+                        "regressor",
+                        RandomForestRegressor(
+                            n_estimators=200,
+                            random_state=self._config.random_state,
+                            n_jobs=1,
+                        ),
+                    ),
+                ]
+            )
+
+        if self._config.model_name == "hist_gradient_boosting":
+            return Pipeline(
+                steps=[
+                    ("vectorizer", DictVectorizer(sparse=False)),
+                    (
+                        "regressor",
+                        HistGradientBoostingRegressor(
+                            random_state=self._config.random_state,
+                        ),
+                    ),
+                ]
+            )
+
+        raise ModelTrainingError(
+            f"Unsupported model `{self._config.model_name}`. "
+            "Supported models: linear_regression, random_forest, hist_gradient_boosting."
         )
 
     @staticmethod

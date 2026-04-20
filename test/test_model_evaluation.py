@@ -40,6 +40,58 @@ def test_evaluation_service_writes_metrics_and_predictions(tmp_path: Path) -> No
     assert "predicted_price" in sample_predictions[0]
 
 
+def test_evaluation_service_supports_random_forest_artifact(tmp_path: Path) -> None:
+    input_path = tmp_path / "processed.csv"
+    input_path.write_text(build_dataset(), encoding="utf-8")
+    model_artifact_path = tmp_path / "artifacts" / "models" / "random_forest_model.pkl"
+    model_artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    write_model_artifact(
+        input_path=input_path,
+        model_artifact_path=model_artifact_path,
+        model_name="random_forest",
+    )
+
+    config = build_config(
+        tmp_path,
+        input_path=input_path,
+        model_artifact_path=model_artifact_path,
+        model_name="random_forest",
+    )
+    result = ModelEvaluationService(config).run()
+
+    metrics = json.loads(result.metrics_path.read_text(encoding="utf-8"))
+
+    assert result.model_name == "random_forest"
+    assert metrics["model_name"] == "random_forest"
+    assert result.evaluated_row_count == 2
+
+
+def test_evaluation_service_supports_hist_gradient_boosting_artifact(tmp_path: Path) -> None:
+    input_path = tmp_path / "processed.csv"
+    input_path.write_text(build_dataset(), encoding="utf-8")
+    model_artifact_path = tmp_path / "artifacts" / "models" / "hist_gradient_boosting_model.pkl"
+    model_artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    write_model_artifact(
+        input_path=input_path,
+        model_artifact_path=model_artifact_path,
+        model_name="hist_gradient_boosting",
+    )
+
+    config = build_config(
+        tmp_path,
+        input_path=input_path,
+        model_artifact_path=model_artifact_path,
+        model_name="hist_gradient_boosting",
+    )
+    result = ModelEvaluationService(config).run()
+
+    metrics = json.loads(result.metrics_path.read_text(encoding="utf-8"))
+
+    assert result.model_name == "hist_gradient_boosting"
+    assert metrics["model_name"] == "hist_gradient_boosting"
+    assert result.evaluated_row_count == 2
+
+
 def test_evaluation_service_fails_when_artifact_is_missing(tmp_path: Path) -> None:
     input_path = tmp_path / "processed.csv"
     input_path.write_text(build_dataset(), encoding="utf-8")
@@ -84,22 +136,37 @@ def test_load_data_evaluation_config_resolves_paths_and_fields(tmp_path: Path) -
     assert loaded.random_state == 42
 
 
-def build_config(base_dir: Path, *, input_path: Path, model_artifact_path: Path) -> DataEvaluationConfig:
+def build_config(
+    base_dir: Path,
+    *,
+    input_path: Path,
+    model_artifact_path: Path,
+    model_name: str = "linear_regression",
+) -> DataEvaluationConfig:
     return DataEvaluationConfig(
         input_data_path=input_path,
         model_artifact_path=model_artifact_path,
-        metrics_path=base_dir / "artifacts" / "evaluation" / "linear_regression_metrics.json",
-        metadata_path=base_dir / "artifacts" / "evaluation" / "linear_regression_evaluation.metadata.json",
-        sample_predictions_path=base_dir / "artifacts" / "evaluation" / "linear_regression_sample_predictions.csv",
+        metrics_path=base_dir / "artifacts" / "evaluation" / f"{model_name}_metrics.json",
+        metadata_path=base_dir / "artifacts" / "evaluation" / f"{model_name}_evaluation.metadata.json",
+        sample_predictions_path=base_dir / "artifacts" / "evaluation" / f"{model_name}_sample_predictions.csv",
         test_size=0.25,
         random_state=7,
     )
 
 
-def write_model_artifact(*, input_path: Path, model_artifact_path: Path) -> None:
+def write_model_artifact(
+    *,
+    input_path: Path,
+    model_artifact_path: Path,
+    model_name: str = "linear_regression",
+) -> None:
     from src.model_training import ModelTrainingService
 
-    training_config = build_training_config(model_artifact_path.parent.parent.parent, input_path)
+    training_config = build_training_config(
+        model_artifact_path.parent.parent.parent,
+        input_path,
+        model_name=model_name,
+    )
     result = ModelTrainingService(training_config).run()
     payload = pickle.loads(result.model_artifact_path.read_bytes())
     model_artifact_path.write_bytes(pickle.dumps(payload))
@@ -122,14 +189,19 @@ def build_dataset() -> str:
     )
 
 
-def build_training_config(base_dir: Path, input_path: Path) -> DataTrainingConfig:
+def build_training_config(
+    base_dir: Path,
+    input_path: Path,
+    *,
+    model_name: str = "linear_regression",
+) -> DataTrainingConfig:
     from src.configuration import DataTrainingConfig
 
     return DataTrainingConfig(
         input_data_path=input_path,
-        model_artifact_path=base_dir / "artifacts" / "models" / "linear_regression_model.pkl",
-        metadata_path=base_dir / "artifacts" / "models" / "linear_regression_model.metadata.json",
-        model_name="linear_regression",
+        model_artifact_path=base_dir / "artifacts" / "models" / f"{model_name}_model.pkl",
+        metadata_path=base_dir / "artifacts" / "models" / f"{model_name}_model.metadata.json",
+        model_name=model_name,
         target_column="price",
         numeric_feature_columns=(
             "bedrooms",
