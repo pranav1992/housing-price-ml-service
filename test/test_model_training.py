@@ -19,7 +19,7 @@ def test_training_service_writes_model_artifact_and_metadata(tmp_path: Path) -> 
     result = ModelTrainingService(config).run()
 
     assert result.model_name == "linear_regression"
-    assert result.input_row_count == 8
+    assert result.input_row_count == 6
     assert result.train_row_count == 6
     assert result.test_row_count == 2
     assert result.feature_count > 0
@@ -86,7 +86,8 @@ def test_load_data_training_config_resolves_paths_and_fields(tmp_path: Path) -> 
         "\n".join(
             [
                 "data_training:",
-                "  input_data_path: artifacts/processed/usa_housing_transformed.csv",
+                "  input_data_path: artifacts/splits/usa_housing_train.csv",
+                "  split_metadata_path: artifacts/splits/usa_housing_split.metadata.json",
                 "  model_artifact_path: artifacts/models/linear_regression_model.pkl",
                 "  metadata_path: artifacts/models/linear_regression_model.metadata.json",
                 "  model_name: linear_regression",
@@ -102,7 +103,8 @@ def test_load_data_training_config_resolves_paths_and_fields(tmp_path: Path) -> 
 
     loaded = load_data_training_config(config_file, project_root=project_root)
 
-    assert loaded.input_data_path == project_root / "artifacts" / "processed" / "usa_housing_transformed.csv"
+    assert loaded.input_data_path == project_root / "artifacts" / "splits" / "usa_housing_train.csv"
+    assert loaded.split_metadata_path == project_root / "artifacts" / "splits" / "usa_housing_split.metadata.json"
     assert loaded.model_artifact_path == project_root / "artifacts" / "models" / "linear_regression_model.pkl"
     assert loaded.numeric_feature_columns == ("bedrooms", "bathrooms", "sqft_living")
     assert loaded.categorical_feature_columns == ("city", "state")
@@ -116,8 +118,23 @@ def build_config(
     *,
     model_name: str = "linear_regression",
 ) -> DataTrainingConfig:
+    split_metadata_path = base_dir / "artifacts" / "splits" / "usa_housing_split.metadata.json"
+    split_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    split_metadata_path.write_text(
+        json.dumps(
+            {
+                "train_row_count": 6,
+                "test_row_count": 2,
+                "test_size": 0.25,
+                "random_state": 7,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return DataTrainingConfig(
         input_data_path=input_path,
+        split_metadata_path=split_metadata_path,
         model_artifact_path=base_dir / "artifacts" / "models" / f"{model_name}_model.pkl",
         metadata_path=base_dir / "artifacts" / "models" / f"{model_name}_model.metadata.json",
         model_name=model_name,
@@ -146,41 +163,15 @@ def build_config(
 
 
 def build_training_dataset() -> str:
-    headers = [
-        "bedrooms",
-        "bathrooms",
-        "sqft_living",
-        "sqft_lot",
-        "floors",
-        "waterfront",
-        "view",
-        "condition",
-        "sqft_above",
-        "sqft_basement",
-        "yr_built",
-        "yr_renovated",
-        "city",
-        "state",
-        "zipcode",
-        "sale_year",
-        "sale_month",
-        "sale_day",
-        "price",
-    ]
-    rows = [
-        ["3", "2", "1340", "1384", "3", "0", "0", "3", "1340", "0", "2008", "0", "Seattle", "WA", "98103", "2014", "5", "9", "376000"],
-        ["4", "3.25", "3540", "159430", "2", "0", "0", "3", "3540", "0", "2007", "0", "Carnation", "WA", "98014", "2014", "5", "9", "800000"],
-        ["5", "6.5", "7270", "130017", "2", "0", "0", "3", "6420", "850", "2010", "0", "Issaquah", "WA", "98029", "2014", "5", "9", "2238888"],
-        ["3", "2.5", "3370", "7911", "1", "0", "0", "3", "1670", "1700", "1968", "0", "Bellevue", "WA", "98008", "2014", "5", "9", "670000"],
-        ["3", "2.25", "1710", "6622", "1", "0", "0", "4", "1710", "0", "1976", "0", "Redmond", "WA", "98052", "2014", "5", "9", "530000"],
-        ["2", "1", "900", "5000", "1", "0", "0", "3", "900", "0", "1940", "0", "Seattle", "WA", "98115", "2014", "5", "10", "250000"],
-        ["4", "2.5", "2500", "7000", "2", "0", "0", "3", "2500", "0", "1995", "0", "Renton", "WA", "98058", "2014", "5", "10", "480000"],
-        ["3", "1.75", "1600", "6200", "1", "0", "0", "4", "1100", "500", "1955", "0", "Kent", "WA", "98031", "2014", "5", "11", "315000"],
-    ]
-
-    buffer = []
-    buffer.append(",".join(headers))
-    for row in rows:
-        buffer.append(",".join(row))
-    buffer.append("")
-    return "\n".join(buffer)
+    return "\n".join(
+        [
+            "bedrooms,bathrooms,sqft_living,sqft_lot,floors,waterfront,view,condition,sqft_above,sqft_basement,yr_built,yr_renovated,city,state,zipcode,sale_year,sale_month,sale_day,price",
+            "3,2,1340,1384,3,0,0,3,1340,0,2008,0,Seattle,WA,98103,2014,5,9,376000",
+            "4,3.25,3540,159430,2,0,0,3,3540,0,2007,0,Carnation,WA,98014,2014,5,9,800000",
+            "5,6.5,7270,130017,2,0,0,3,6420,850,2010,0,Issaquah,WA,98029,2014,5,9,2238888",
+            "3,2.5,3370,7911,1,0,0,3,1670,1700,1968,0,Bellevue,WA,98008,2014,5,9,670000",
+            "3,2.25,1710,6622,1,0,0,4,1710,0,1976,0,Redmond,WA,98052,2014,5,9,530000",
+            "2,1,900,5000,1,0,0,3,900,0,1940,0,Seattle,WA,98115,2014,5,10,250000",
+            "",
+        ]
+    )
