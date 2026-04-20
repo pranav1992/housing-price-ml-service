@@ -52,16 +52,16 @@ class ModelTrainingService:
         if len(feature_rows) < 2:
             raise ModelTrainingError("Training requires at least two rows after transformation.")
 
-        train_test_split = self._load_train_test_split()
-        X_train, X_test, y_train, y_test = train_test_split(
-            feature_rows,
-            targets,
-            test_size=self._config.test_size,
-            random_state=self._config.random_state,
-        )
+        split_metadata = self._load_split_metadata()
+        train_row_count = split_metadata.get("train_row_count", len(feature_rows))
+        test_row_count = split_metadata.get("test_row_count", 0)
+        if train_row_count != len(feature_rows):
+            raise ModelTrainingError(
+                "Training input row count does not match split metadata train_row_count."
+            )
 
         model = self._build_pipeline()
-        model.fit(X_train, y_train)
+        model.fit(feature_rows, targets)
 
         feature_names = tuple(model.named_steps["vectorizer"].get_feature_names_out())
         self._config.model_artifact_path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,8 +69,8 @@ class ModelTrainingService:
         self._write_model_artifact(model)
         self._write_metadata(
             input_row_count=len(feature_rows),
-            train_row_count=len(X_train),
-            test_row_count=len(X_test),
+            train_row_count=train_row_count,
+            test_row_count=test_row_count,
             feature_names=feature_names,
         )
 
@@ -79,8 +79,8 @@ class ModelTrainingService:
             metadata_path=self._config.metadata_path,
             model_name=self._config.model_name,
             input_row_count=len(feature_rows),
-            train_row_count=len(X_train),
-            test_row_count=len(X_test),
+            train_row_count=train_row_count,
+            test_row_count=test_row_count,
             feature_count=len(feature_names),
             feature_names=feature_names,
         )
@@ -140,16 +140,6 @@ class ModelTrainingService:
         )
 
     @staticmethod
-    def _load_train_test_split():
-        try:
-            from sklearn.model_selection import train_test_split
-        except ImportError as exc:
-            raise ModelTrainingError(
-                "scikit-learn is required for model training. Install project dependencies before running training."
-            ) from exc
-        return train_test_split
-
-    @staticmethod
     def _read_rows(input_path: Path) -> tuple[list[dict[str, str]], tuple[str, ...]]:
         with input_path.open("r", encoding="utf-8", newline="") as file_obj:
             reader = csv.DictReader(file_obj)
@@ -197,6 +187,18 @@ class ModelTrainingService:
             raise ModelTrainingError(
                 f"Target column `{self._config.target_column}` contains a non-numeric value at line {index}: "
                 f"`{raw_value}`."
+            ) from exc
+
+    def _load_split_metadata(self) -> dict[str, Any]:
+        split_metadata_path = self._config.split_metadata_path
+        if not split_metadata_path.exists():
+            raise ModelTrainingError(f"Split metadata file not found: {split_metadata_path}")
+
+        try:
+            return json.loads(split_metadata_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ModelTrainingError(
+                f"Split metadata file is invalid JSON: {split_metadata_path}"
             ) from exc
 
     def _write_model_artifact(self, model) -> None:

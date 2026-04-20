@@ -13,8 +13,8 @@ from src.model_evaluation import ModelEvaluationService
 
 
 def test_evaluation_service_writes_metrics_and_predictions(tmp_path: Path) -> None:
-    input_path = tmp_path / "processed.csv"
-    input_path.write_text(build_dataset(), encoding="utf-8")
+    input_path = tmp_path / "test.csv"
+    input_path.write_text(build_test_dataset(), encoding="utf-8")
     model_artifact_path = tmp_path / "artifacts" / "models" / "linear_regression_model.pkl"
     model_artifact_path.parent.mkdir(parents=True, exist_ok=True)
     write_model_artifact(input_path=input_path, model_artifact_path=model_artifact_path)
@@ -41,8 +41,8 @@ def test_evaluation_service_writes_metrics_and_predictions(tmp_path: Path) -> No
 
 
 def test_evaluation_service_supports_random_forest_artifact(tmp_path: Path) -> None:
-    input_path = tmp_path / "processed.csv"
-    input_path.write_text(build_dataset(), encoding="utf-8")
+    input_path = tmp_path / "test.csv"
+    input_path.write_text(build_test_dataset(), encoding="utf-8")
     model_artifact_path = tmp_path / "artifacts" / "models" / "random_forest_model.pkl"
     model_artifact_path.parent.mkdir(parents=True, exist_ok=True)
     write_model_artifact(
@@ -67,8 +67,8 @@ def test_evaluation_service_supports_random_forest_artifact(tmp_path: Path) -> N
 
 
 def test_evaluation_service_supports_hist_gradient_boosting_artifact(tmp_path: Path) -> None:
-    input_path = tmp_path / "processed.csv"
-    input_path.write_text(build_dataset(), encoding="utf-8")
+    input_path = tmp_path / "test.csv"
+    input_path.write_text(build_test_dataset(), encoding="utf-8")
     model_artifact_path = tmp_path / "artifacts" / "models" / "hist_gradient_boosting_model.pkl"
     model_artifact_path.parent.mkdir(parents=True, exist_ok=True)
     write_model_artifact(
@@ -93,8 +93,8 @@ def test_evaluation_service_supports_hist_gradient_boosting_artifact(tmp_path: P
 
 
 def test_evaluation_service_fails_when_artifact_is_missing(tmp_path: Path) -> None:
-    input_path = tmp_path / "processed.csv"
-    input_path.write_text(build_dataset(), encoding="utf-8")
+    input_path = tmp_path / "test.csv"
+    input_path.write_text(build_test_dataset(), encoding="utf-8")
     config = build_config(
         tmp_path,
         input_path=input_path,
@@ -115,7 +115,8 @@ def test_load_data_evaluation_config_resolves_paths_and_fields(tmp_path: Path) -
         "\n".join(
             [
                 "data_evaluation:",
-                "  input_data_path: artifacts/processed/usa_housing_transformed.csv",
+                "  input_data_path: artifacts/splits/usa_housing_test.csv",
+                "  split_metadata_path: artifacts/splits/usa_housing_split.metadata.json",
                 "  model_artifact_path: artifacts/models/linear_regression_model.pkl",
                 "  metrics_path: artifacts/evaluation/linear_regression_metrics.json",
                 "  metadata_path: artifacts/evaluation/linear_regression_evaluation.metadata.json",
@@ -129,7 +130,8 @@ def test_load_data_evaluation_config_resolves_paths_and_fields(tmp_path: Path) -
 
     loaded = load_data_evaluation_config(config_file, project_root=project_root)
 
-    assert loaded.input_data_path == project_root / "artifacts" / "processed" / "usa_housing_transformed.csv"
+    assert loaded.input_data_path == project_root / "artifacts" / "splits" / "usa_housing_test.csv"
+    assert loaded.split_metadata_path == project_root / "artifacts" / "splits" / "usa_housing_split.metadata.json"
     assert loaded.metrics_path == project_root / "artifacts" / "evaluation" / "linear_regression_metrics.json"
     assert loaded.sample_predictions_path == project_root / "artifacts" / "evaluation" / "linear_regression_sample_predictions.csv"
     assert loaded.test_size == 0.2
@@ -143,8 +145,23 @@ def build_config(
     model_artifact_path: Path,
     model_name: str = "linear_regression",
 ) -> DataEvaluationConfig:
+    split_metadata_path = base_dir / "artifacts" / "splits" / "usa_housing_split.metadata.json"
+    split_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    split_metadata_path.write_text(
+        json.dumps(
+            {
+                "train_row_count": 6,
+                "test_row_count": 2,
+                "test_size": 0.25,
+                "random_state": 7,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return DataEvaluationConfig(
         input_data_path=input_path,
+        split_metadata_path=split_metadata_path,
         model_artifact_path=model_artifact_path,
         metrics_path=base_dir / "artifacts" / "evaluation" / f"{model_name}_metrics.json",
         metadata_path=base_dir / "artifacts" / "evaluation" / f"{model_name}_evaluation.metadata.json",
@@ -162,9 +179,11 @@ def write_model_artifact(
 ) -> None:
     from src.model_training import ModelTrainingService
 
+    training_input_path = model_artifact_path.parent.parent.parent / "train.csv"
+    training_input_path.write_text(build_training_dataset(), encoding="utf-8")
     training_config = build_training_config(
         model_artifact_path.parent.parent.parent,
-        input_path,
+        training_input_path,
         model_name=model_name,
     )
     result = ModelTrainingService(training_config).run()
@@ -172,7 +191,18 @@ def write_model_artifact(
     model_artifact_path.write_bytes(pickle.dumps(payload))
 
 
-def build_dataset() -> str:
+def build_test_dataset() -> str:
+    return "\n".join(
+        [
+            "bedrooms,bathrooms,sqft_living,sqft_lot,floors,waterfront,view,condition,sqft_above,sqft_basement,yr_built,yr_renovated,city,state,zipcode,sale_year,sale_month,sale_day,price",
+            "4,2.5,2500,7000,2,0,0,3,2500,0,1995,0,Renton,WA,98058,2014,5,10,480000",
+            "3,1.75,1600,6200,1,0,0,4,1100,500,1955,0,Kent,WA,98031,2014,5,11,315000",
+            "",
+        ]
+    )
+
+
+def build_training_dataset() -> str:
     return "\n".join(
         [
             "bedrooms,bathrooms,sqft_living,sqft_lot,floors,waterfront,view,condition,sqft_above,sqft_basement,yr_built,yr_renovated,city,state,zipcode,sale_year,sale_month,sale_day,price",
@@ -182,8 +212,6 @@ def build_dataset() -> str:
             "3,2.5,3370,7911,1,0,0,3,1670,1700,1968,0,Bellevue,WA,98008,2014,5,9,670000",
             "3,2.25,1710,6622,1,0,0,4,1710,0,1976,0,Redmond,WA,98052,2014,5,9,530000",
             "2,1,900,5000,1,0,0,3,900,0,1940,0,Seattle,WA,98115,2014,5,10,250000",
-            "4,2.5,2500,7000,2,0,0,3,2500,0,1995,0,Renton,WA,98058,2014,5,10,480000",
-            "3,1.75,1600,6200,1,0,0,4,1100,500,1955,0,Kent,WA,98031,2014,5,11,315000",
             "",
         ]
     )
@@ -197,8 +225,23 @@ def build_training_config(
 ) -> DataTrainingConfig:
     from src.configuration import DataTrainingConfig
 
+    split_metadata_path = base_dir / "artifacts" / "splits" / "usa_housing_split.metadata.json"
+    split_metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    split_metadata_path.write_text(
+        json.dumps(
+            {
+                "train_row_count": 6,
+                "test_row_count": 2,
+                "test_size": 0.25,
+                "random_state": 7,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return DataTrainingConfig(
         input_data_path=input_path,
+        split_metadata_path=split_metadata_path,
         model_artifact_path=base_dir / "artifacts" / "models" / f"{model_name}_model.pkl",
         metadata_path=base_dir / "artifacts" / "models" / f"{model_name}_model.metadata.json",
         model_name=model_name,

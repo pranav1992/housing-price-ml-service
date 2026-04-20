@@ -22,8 +22,18 @@ data_transformation:
   zipcode_column_name: zipcode
   drop_non_positive_target: true
 
-data_training:
+data_split:
   input_data_path: artifacts/processed/usa_housing_transformed.csv
+  train_data_path: artifacts/splits/usa_housing_train.csv
+  test_data_path: artifacts/splits/usa_housing_test.csv
+  metadata_path: artifacts/splits/usa_housing_split.metadata.json
+  target_column: price
+  test_size: 0.2
+  random_state: 42
+
+data_training:
+  input_data_path: artifacts/splits/usa_housing_train.csv
+  split_metadata_path: artifacts/splits/usa_housing_split.metadata.json
   model_artifact_path: artifacts/models/linear_regression_model.pkl
   metadata_path: artifacts/models/linear_regression_model.metadata.json
   model_name: linear_regression
@@ -34,10 +44,17 @@ data_training:
   random_state: 42
 
 data_evaluation:
-  input_data_path: artifacts/processed/usa_housing_transformed.csv
+  input_data_path: artifacts/splits/usa_housing_test.csv
+  split_metadata_path: artifacts/splits/usa_housing_split.metadata.json
   model_artifact_path: artifacts/models/linear_regression_model.pkl
   metrics_path: artifacts/evaluation/linear_regression_metrics.json
   metadata_path: artifacts/evaluation/linear_regression_evaluation.metadata.json
   sample_predictions_path: artifacts/evaluation/linear_regression_sample_predictions.csv
   test_size: 0.2
   random_state: 42
+
+data_inference:
+  input_data_path: artifacts/splits/usa_housing_test.csv
+  model_artifact_path: artifacts/models/linear_regression_model.pkl
+  predictions_path: artifacts/predictions/linear_regression_predictions.csv
+  metadata_path: artifacts/predictions/linear_regression_predictions.metadata.json

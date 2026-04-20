@@ -62,10 +62,24 @@ class DataTransformationConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class DataTrainingConfig:
-    """Configuration for training a baseline regression model."""
+class DataSplitConfig:
+    """Configuration for persisting a deterministic train/test split."""
 
     input_data_path: Path
+    train_data_path: Path
+    test_data_path: Path
+    metadata_path: Path
+    target_column: str
+    test_size: float
+    random_state: int
+
+
+@dataclass(frozen=True, slots=True)
+class DataTrainingConfig:
+    """Configuration for training a regression model."""
+
+    input_data_path: Path
+    split_metadata_path: Path
     model_artifact_path: Path
     metadata_path: Path
     model_name: str
@@ -81,12 +95,23 @@ class DataEvaluationConfig:
     """Configuration for evaluating a trained model on the held-out split."""
 
     input_data_path: Path
+    split_metadata_path: Path
     model_artifact_path: Path
     metrics_path: Path
     metadata_path: Path
     sample_predictions_path: Path
     test_size: float
     random_state: int
+
+
+@dataclass(frozen=True, slots=True)
+class DataInferenceConfig:
+    """Configuration for batch inference using a trained model artifact."""
+
+    input_data_path: Path
+    model_artifact_path: Path
+    predictions_path: Path
+    metadata_path: Path
 
 
 def load_data_ingestion_config(
@@ -230,6 +255,10 @@ def load_data_training_config(
             root_dir,
             _require_string_with_section(training_data, "input_data_path", "data_training"),
         ),
+        split_metadata_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(training_data, "split_metadata_path", "data_training"),
+        ),
         model_artifact_path=_resolve_path(
             root_dir,
             _require_string_with_section(training_data, "model_artifact_path", "data_training"),
@@ -278,6 +307,10 @@ def load_data_evaluation_config(
             root_dir,
             _require_string_with_section(evaluation_data, "input_data_path", "data_evaluation"),
         ),
+        split_metadata_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(evaluation_data, "split_metadata_path", "data_evaluation"),
+        ),
         model_artifact_path=_resolve_path(
             root_dir,
             _require_string_with_section(evaluation_data, "model_artifact_path", "data_evaluation"),
@@ -296,6 +329,85 @@ def load_data_evaluation_config(
         ),
         test_size=_require_probability_with_section(evaluation_data, "test_size", "data_evaluation"),
         random_state=_require_int_with_section(evaluation_data, "random_state", "data_evaluation"),
+    )
+
+
+def load_data_inference_config(
+    config_path: str | Path,
+    *,
+    project_root: str | Path | None = None,
+) -> DataInferenceConfig:
+    """Load and validate model inference settings from YAML."""
+
+    config_file = Path(config_path).expanduser().resolve()
+    if not config_file.exists():
+        raise ConfigurationError(f"Config file not found: {config_file}")
+
+    root_dir = Path(project_root).expanduser().resolve() if project_root else config_file.parent.parent
+    config_data = _read_yaml(config_file)
+
+    inference_data = config_data.get("data_inference")
+    if not isinstance(inference_data, dict):
+        raise ConfigurationError("Missing `data_inference` section in config.")
+
+    return DataInferenceConfig(
+        input_data_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(inference_data, "input_data_path", "data_inference"),
+        ),
+        model_artifact_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(inference_data, "model_artifact_path", "data_inference"),
+        ),
+        predictions_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(inference_data, "predictions_path", "data_inference"),
+        ),
+        metadata_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(inference_data, "metadata_path", "data_inference"),
+        ),
+    )
+
+
+def load_data_split_config(
+    config_path: str | Path,
+    *,
+    project_root: str | Path | None = None,
+) -> DataSplitConfig:
+    """Load and validate data split settings from YAML."""
+
+    config_file = Path(config_path).expanduser().resolve()
+    if not config_file.exists():
+        raise ConfigurationError(f"Config file not found: {config_file}")
+
+    root_dir = Path(project_root).expanduser().resolve() if project_root else config_file.parent.parent
+    config_data = _read_yaml(config_file)
+
+    split_data = config_data.get("data_split")
+    if not isinstance(split_data, dict):
+        raise ConfigurationError("Missing `data_split` section in config.")
+
+    return DataSplitConfig(
+        input_data_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(split_data, "input_data_path", "data_split"),
+        ),
+        train_data_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(split_data, "train_data_path", "data_split"),
+        ),
+        test_data_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(split_data, "test_data_path", "data_split"),
+        ),
+        metadata_path=_resolve_path(
+            root_dir,
+            _require_string_with_section(split_data, "metadata_path", "data_split"),
+        ),
+        target_column=_require_string_with_section(split_data, "target_column", "data_split"),
+        test_size=_require_probability_with_section(split_data, "test_size", "data_split"),
+        random_state=_require_int_with_section(split_data, "random_state", "data_split"),
     )
 
 

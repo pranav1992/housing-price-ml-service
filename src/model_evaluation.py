@@ -73,24 +73,22 @@ class ModelEvaluationService:
             )
             targets.append(self._parse_target(row, target_column=target_column, index=index))
 
-        train_test_split = self._load_train_test_split()
-        _, X_test, _, y_test = train_test_split(
-            feature_rows,
-            targets,
-            test_size=self._config.test_size,
-            random_state=self._config.random_state,
-        )
-
         pipeline = artifact["pipeline"]
-        predictions = pipeline.predict(X_test)
-        mae, rmse, r2 = self._compute_metrics(y_test, predictions)
+        predictions = pipeline.predict(feature_rows)
+        mae, rmse, r2 = self._compute_metrics(targets, predictions)
+        split_metadata = self._load_split_metadata()
+        expected_test_row_count = split_metadata.get("test_row_count", len(targets))
+        if expected_test_row_count != len(targets):
+            raise ModelEvaluationError(
+                "Evaluation input row count does not match split metadata test_row_count."
+            )
 
         self._config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
         self._config.metadata_path.parent.mkdir(parents=True, exist_ok=True)
         self._config.sample_predictions_path.parent.mkdir(parents=True, exist_ok=True)
         self._write_metrics(
             model_name=artifact["model_name"],
-            evaluated_row_count=len(y_test),
+            evaluated_row_count=len(targets),
             mae=mae,
             rmse=rmse,
             r2=r2,
@@ -100,16 +98,16 @@ class ModelEvaluationService:
             target_column=target_column,
             numeric_feature_columns=numeric_feature_columns,
             categorical_feature_columns=categorical_feature_columns,
-            evaluated_row_count=len(y_test),
+            evaluated_row_count=len(targets),
         )
-        self._write_sample_predictions(X_test, y_test, predictions)
+        self._write_sample_predictions(feature_rows, targets, predictions)
 
         return ModelEvaluationResult(
             metrics_path=self._config.metrics_path,
             metadata_path=self._config.metadata_path,
             sample_predictions_path=self._config.sample_predictions_path,
             model_name=artifact["model_name"],
-            evaluated_row_count=len(y_test),
+            evaluated_row_count=len(targets),
             mae=mae,
             rmse=rmse,
             r2=r2,
@@ -184,16 +182,6 @@ class ModelEvaluationService:
             ) from exc
 
     @staticmethod
-    def _load_train_test_split():
-        try:
-            from sklearn.model_selection import train_test_split
-        except ImportError as exc:
-            raise ModelEvaluationError(
-                "scikit-learn is required for model evaluation. Install project dependencies before running evaluation."
-            ) from exc
-        return train_test_split
-
-    @staticmethod
     def _compute_metrics(y_true: list[float], predictions) -> tuple[float, float, float]:
         try:
             from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -206,6 +194,18 @@ class ModelEvaluationService:
         rmse = float(mean_squared_error(y_true, predictions) ** 0.5)
         r2 = float(r2_score(y_true, predictions))
         return mae, rmse, r2
+
+    def _load_split_metadata(self) -> dict[str, Any]:
+        split_metadata_path = self._config.split_metadata_path
+        if not split_metadata_path.exists():
+            raise ModelEvaluationError(f"Split metadata file not found: {split_metadata_path}")
+
+        try:
+            return json.loads(split_metadata_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ModelEvaluationError(
+                f"Split metadata file is invalid JSON: {split_metadata_path}"
+            ) from exc
 
     def _write_metrics(
         self,
