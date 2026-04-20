@@ -67,11 +67,22 @@ Current behavior:
 - Runtime dependency:
   - `scikit-learn>=1.5.0`
 
-For development and tests:
+Create and activate a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
+
+Install runtime dependencies:
+
+```bash
+python -m pip install -e .
+```
+
+Install development and test extras:
+
+```bash
 python -m pip install -e '.[dev]'
 ```
 
