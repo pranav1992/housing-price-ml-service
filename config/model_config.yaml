@@ -7,3 +7,17 @@ data_validation:
   strict_positive_columns: sqft_living, sqft_lot, sqft_above, yr_built
   warning_non_positive_columns: price
   expected_constant_values: country=USA
+
+data_transformation:
+  input_data_path: data/raw/usa-housing-dataset/USA Housing Dataset.csv
+  transformed_data_path: artifacts/processed/usa_housing_transformed.csv
+  metadata_path: artifacts/processed/usa_housing_transformed.metadata.json
+  target_column: price
+  date_column: date
+  numeric_columns: bedrooms, bathrooms, sqft_living, sqft_lot, floors, waterfront, view, condition, sqft_above, sqft_basement, yr_built, yr_renovated
+  categorical_columns: city
+  drop_columns: street, country, statezip, date
+  statezip_column: statezip
+  state_column_name: state
+  zipcode_column_name: zipcode
+  drop_non_positive_target: true

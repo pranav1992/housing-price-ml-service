@@ -11,3 +11,7 @@ class DataIngestionError(Exception):
 
 class DataValidationError(Exception):
     """Raised when data validation fails."""
+
+
+class DataTransformationError(Exception):
+    """Raised when data transformation fails."""

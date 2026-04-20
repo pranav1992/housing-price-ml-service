@@ -46,3 +46,4 @@ uv.toml
 
 # Project data artifacts
 data/raw/
+artifacts/processed/

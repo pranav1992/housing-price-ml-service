@@ -43,6 +43,24 @@ class DataValidationConfig:
     expected_constant_values: tuple[tuple[str, str], ...]
 
 
+@dataclass(frozen=True, slots=True)
+class DataTransformationConfig:
+    """Configuration for transforming validated data into model-ready artifacts."""
+
+    input_data_path: Path
+    transformed_data_path: Path
+    metadata_path: Path
+    target_column: str
+    date_column: str
+    numeric_columns: tuple[str, ...]
+    categorical_columns: tuple[str, ...]
+    drop_columns: tuple[str, ...]
+    statezip_column: str
+    state_column_name: str
+    zipcode_column_name: str
+    drop_non_positive_target: bool
+
+
 def load_data_ingestion_config(
     config_path: str | Path,
     *,
@@ -105,6 +123,59 @@ def load_data_validation_config(
         strict_positive_columns=_optional_csv_list(validation_data, "strict_positive_columns"),
         warning_non_positive_columns=_optional_csv_list(validation_data, "warning_non_positive_columns"),
         expected_constant_values=_optional_key_value_pairs(validation_data, "expected_constant_values"),
+    )
+
+
+def load_data_transformation_config(
+    config_path: str | Path,
+    *,
+    project_root: str | Path | None = None,
+) -> DataTransformationConfig:
+    """Load and validate data transformation settings from YAML."""
+
+    config_file = Path(config_path).expanduser().resolve()
+    if not config_file.exists():
+        raise ConfigurationError(f"Config file not found: {config_file}")
+
+    root_dir = Path(project_root).expanduser().resolve() if project_root else config_file.parent.parent
+    config_data = _read_yaml(config_file)
+
+    transformation_data = config_data.get("data_transformation")
+    if not isinstance(transformation_data, dict):
+        raise ConfigurationError("Missing `data_transformation` section in config.")
+
+    return DataTransformationConfig(
+        input_data_path=_resolve_path(root_dir, _require_string(transformation_data, "input_data_path")),
+        transformed_data_path=_resolve_path(
+            root_dir,
+            _require_string(transformation_data, "transformed_data_path"),
+        ),
+        metadata_path=_resolve_path(root_dir, _require_string(transformation_data, "metadata_path")),
+        target_column=_require_string(transformation_data, "target_column"),
+        date_column=_require_string(transformation_data, "date_column"),
+        numeric_columns=_require_csv_list_with_section(
+            transformation_data,
+            "numeric_columns",
+            "data_transformation",
+        ),
+        categorical_columns=_require_csv_list_with_section(
+            transformation_data,
+            "categorical_columns",
+            "data_transformation",
+        ),
+        drop_columns=_optional_csv_list_with_section(
+            transformation_data,
+            "drop_columns",
+            "data_transformation",
+        ),
+        statezip_column=_require_string(transformation_data, "statezip_column"),
+        state_column_name=_require_string(transformation_data, "state_column_name"),
+        zipcode_column_name=_require_string(transformation_data, "zipcode_column_name"),
+        drop_non_positive_target=_require_bool_with_section(
+            transformation_data,
+            "drop_non_positive_target",
+            "data_transformation",
+        ),
     )
 
 
@@ -176,6 +247,48 @@ def _optional_csv_list(data: dict[str, Any], key: str) -> tuple[str, ...]:
 
     items = tuple(item.strip() for item in value.split(",") if item.strip())
     return items
+
+
+def _require_csv_list_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> tuple[str, ...]:
+    values = _optional_csv_list_with_section(data, key, section_name)
+    if not values:
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+    return values
+
+
+def _optional_csv_list_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> tuple[str, ...]:
+    value = data.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, str):
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+def _require_bool_with_section(
+    data: dict[str, Any],
+    key: str,
+    section_name: str,
+) -> bool:
+    value = data.get(key)
+    if not isinstance(value, str):
+        raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
+
+    normalized = value.strip().lower()
+    if normalized in {"true", "yes", "1"}:
+        return True
+    if normalized in {"false", "no", "0"}:
+        return False
+
+    raise ConfigurationError(f"Missing or invalid `{section_name}.{key}`.")
 
 
 def _optional_key_value_pairs(data: dict[str, Any], key: str) -> tuple[tuple[str, str], ...]:
